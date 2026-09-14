@@ -1,0 +1,27 @@
+:root {
+  font-family: Manrope, system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #111827;
+  background: #f3f4f6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.12), transparent 28%),
+    #f3f4f6;
+}
+
+button,
+input {
+  font-family: inherit;
+}
