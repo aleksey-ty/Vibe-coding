@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { getDashboardStats, leads } from './data/leads'
+import LeadsTrendChart from './components/LeadsTrendChart'
+import { getDashboardStats, leads, sortLeadsByPriority } from './data/leads'
 import './App.css'
 
 const navItems = [
@@ -98,6 +99,8 @@ export default function App() {
 }
 
 function Dashboard({ stats, onOpenLeads }) {
+  const prioritizedLeads = useMemo(() => sortLeadsByPriority(leads), [])
+
   return (
     <section className="content">
       <div className="stats">
@@ -124,11 +127,13 @@ function Dashboard({ stats, onOpenLeads }) {
         </article>
       </div>
 
+      <LeadsTrendChart />
+
       <div className="panel">
         <div className="panel-header">
           <div>
             <h2>Последние заявки</h2>
-            <p>Тестовые данные без подключения базы</p>
+            <p>Тестовые данные, отсортированы по приоритету: горячие выше</p>
           </div>
           <button className="ghost" onClick={onOpenLeads}>Все заявки</button>
         </div>
@@ -147,8 +152,8 @@ function Dashboard({ stats, onOpenLeads }) {
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id}>
+              {prioritizedLeads.map((lead) => (
+                <tr key={lead.id} className={`row-${lead.heat}`}>
                   <td className="mono">{lead.id}</td>
                   <td>
                     <div className="client">
