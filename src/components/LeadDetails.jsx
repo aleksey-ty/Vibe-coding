@@ -91,6 +91,18 @@ export default function LeadDetails({ lead, onClose, onChangeStatus }) {
             <span>Дата</span>
             <strong>{lead.createdAt}</strong>
           </div>
+          {lead.contact ? (
+            <div className="detail-item">
+              <span>Контакт</span>
+              <strong>{lead.contact}</strong>
+            </div>
+          ) : null}
+          {lead.description ? (
+            <div className="detail-item wide">
+              <span>Описание</span>
+              <strong>{lead.description}</strong>
+            </div>
+          ) : null}
         </div>
 
         <div className="workflow">

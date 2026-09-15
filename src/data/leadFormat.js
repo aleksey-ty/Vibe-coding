@@ -37,3 +37,13 @@ export function formatMoney(value) {
     maximumFractionDigits: 0,
   }).format(value)
 }
+
+// Тот же формат даты, что у тестовых заявок: '2026-09-14 10:24'.
+// Благодаря этому сортировка по createdAt (строковое сравнение) продолжает работать.
+export function formatLeadDate(date) {
+  const pad = (value) => String(value).padStart(2, '0')
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}`
+}

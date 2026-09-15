@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import LeadsTrendChart from './components/LeadsTrendChart'
 import LeadDetails from './components/LeadDetails'
-import { getDashboardStats, leads as initialLeads, sortLeadsByPriority } from './data/leads'
-import { formatMoney, heatLabels, statusLabels } from './data/leadFormat'
+import LeadForm from './components/LeadForm'
+import { getDashboardStats, getHeatByValue, leads as initialLeads, sortLeadsByPriority } from './data/leads'
+import { formatLeadDate, formatMoney, heatLabels, statusLabels } from './data/leadFormat'
 import './App.css'
 
 const navItems = [
@@ -17,11 +18,25 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [leads, setLeads] = useState(initialLeads)
   const [selectedLeadId, setSelectedLeadId] = useState(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const stats = useMemo(() => getDashboardStats(leads), [leads])
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) ?? null
 
   function selectLead(lead) {
     setSelectedLeadId(lead.id)
+  }
+
+  function createLead(formValues) {
+    const newLead = {
+      id: `LM-${Date.now()}`,
+      ...formValues,
+      status: 'new',
+      heat: getHeatByValue(formValues.value),
+      createdAt: formatLeadDate(new Date()),
+    }
+
+    setLeads((current) => [newLead, ...current])
+    setIsFormOpen(false)
   }
 
   function updateLeadStatus(leadId, nextStatus) {
@@ -89,6 +104,7 @@ export default function App() {
             stats={stats}
             onOpenLeads={() => setActivePage('leads')}
             onSelectLead={selectLead}
+            onCreateLead={() => setIsFormOpen(true)}
           />
         ) : (
           <Placeholder page={navItems.find((item) => item.id === activePage)?.label} />
@@ -103,11 +119,13 @@ export default function App() {
           onChangeStatus={(nextStatus) => updateLeadStatus(selectedLead.id, nextStatus)}
         />
       ) : null}
+
+      {isFormOpen ? <LeadForm onCreate={createLead} onClose={() => setIsFormOpen(false)} /> : null}
     </div>
   )
 }
 
-function Dashboard({ leads, stats, onOpenLeads, onSelectLead }) {
+function Dashboard({ leads, stats, onOpenLeads, onSelectLead, onCreateLead }) {
   const prioritizedLeads = useMemo(() => sortLeadsByPriority(leads), [leads])
 
   return (
@@ -144,7 +162,12 @@ function Dashboard({ leads, stats, onOpenLeads, onSelectLead }) {
             <h2>Последние заявки</h2>
             <p>Отсортированы по приоритету. Нажмите на строку, чтобы открыть AI-анализ заявки.</p>
           </div>
-          <button className="ghost" onClick={onOpenLeads}>Все заявки</button>
+          <div className="panel-actions">
+            <button className="action-button compact" onClick={onCreateLead}>
+              + Новая заявка
+            </button>
+            <button className="ghost" onClick={onOpenLeads}>Все заявки</button>
+          </div>
         </div>
 
         <div className="table-wrap">

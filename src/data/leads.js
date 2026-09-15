@@ -116,3 +116,24 @@ export function sortLeadsByPriority(items) {
     return b.createdAt.localeCompare(a.createdAt)
   })
 }
+
+// Пороги приоритета по потенциальной сумме заявки.
+const VALUE_COLD_MAX = 30000
+const VALUE_WARM_MAX = 100000
+
+// heat — это ПРИОРИТЕТ заявки по потенциальной сумме.
+// Он не связан со статусом обработки (status) и не меняется при workflow.
+export function getHeatByValue(value) {
+  // Сумма не указана — считаем заявку «тёплой».
+  if (value === null || value === undefined || value === '') return 'warm'
+
+  const amount = Number(value)
+
+  // Некорректное значение не должно ломать создание заявки.
+  if (!Number.isFinite(amount)) return 'warm'
+
+  if (amount < VALUE_COLD_MAX) return 'cold'
+  if (amount < VALUE_WARM_MAX) return 'warm'
+
+  return 'hot'
+}
