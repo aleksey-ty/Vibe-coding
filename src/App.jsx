@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import LeadsTrendChart from './components/LeadsTrendChart'
+import LeadDetails from './components/LeadDetails'
 import { getDashboardStats, leads, sortLeadsByPriority } from './data/leads'
+import { formatMoney, heatLabels, statusLabels } from './data/leadFormat'
 import './App.css'
 
 const navItems = [
@@ -10,29 +12,10 @@ const navItems = [
   { id: 'settings', label: 'Настройки', icon: SettingsIcon },
 ]
 
-const statusLabels = {
-  new: 'Новая',
-  hot: 'Горячая',
-  processed: 'Обработана',
-}
-
-const heatLabels = {
-  hot: 'Горячий',
-  warm: 'Тёплый',
-  cold: 'Холодный',
-}
-
-function formatMoney(value) {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [selectedLead, setSelectedLead] = useState(null)
   const stats = useMemo(() => getDashboardStats(leads), [])
 
   return (
@@ -89,16 +72,22 @@ export default function App() {
         </header>
 
         {activePage === 'dashboard' ? (
-          <Dashboard stats={stats} onOpenLeads={() => setActivePage('leads')} />
+          <Dashboard
+            stats={stats}
+            onOpenLeads={() => setActivePage('leads')}
+            onSelectLead={setSelectedLead}
+          />
         ) : (
           <Placeholder page={navItems.find((item) => item.id === activePage)?.label} />
         )}
       </main>
+
+      {selectedLead ? <LeadDetails lead={selectedLead} onClose={() => setSelectedLead(null)} /> : null}
     </div>
   )
 }
 
-function Dashboard({ stats, onOpenLeads }) {
+function Dashboard({ stats, onOpenLeads, onSelectLead }) {
   const prioritizedLeads = useMemo(() => sortLeadsByPriority(leads), [])
 
   return (
@@ -133,7 +122,7 @@ function Dashboard({ stats, onOpenLeads }) {
         <div className="panel-header">
           <div>
             <h2>Последние заявки</h2>
-            <p>Тестовые данные, отсортированы по приоритету: горячие выше</p>
+            <p>Отсортированы по приоритету. Нажмите на строку, чтобы открыть AI-анализ заявки.</p>
           </div>
           <button className="ghost" onClick={onOpenLeads}>Все заявки</button>
         </div>
@@ -153,7 +142,18 @@ function Dashboard({ stats, onOpenLeads }) {
             </thead>
             <tbody>
               {prioritizedLeads.map((lead) => (
-                <tr key={lead.id} className={`row-${lead.heat}`}>
+                <tr
+                  key={lead.id}
+                  className={`row-${lead.heat} row-clickable`}
+                  tabIndex={0}
+                  onClick={() => onSelectLead(lead)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      onSelectLead(lead)
+                    }
+                  }}
+                >
                   <td className="mono">{lead.id}</td>
                   <td>
                     <div className="client">
