@@ -649,6 +649,57 @@ tbody tr.row-hot.row-clickable:hover {
   color: #4f46e5;
 }
 
+.workflow {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.workflow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workflow-head > span {
+  color: #6b7280;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.action-button {
+  justify-self: start;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action-button:hover {
+  filter: brightness(1.06);
+}
+
+.workflow-done {
+  margin: 0;
+  color: #047857;
+  font-weight: 600;
+}
+
+.workflow-notice {
+  margin: 0;
+  color: #4338ca;
+  font-size: 13px;
+}
+
 @media (max-width: 860px) {
   .modal-backdrop {
     padding: 12px;
@@ -661,5 +712,10 @@ tbody tr.row-hot.row-clickable:hover {
 
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .action-button {
+    justify-self: stretch;
+    width: 100%;
   }
 }

@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react'
 import { getLeadAIAnalysis } from '../data/aiAnalysis'
-import { formatMoney, heatLabels, priorityTitles, statusLabels } from '../data/leadFormat'
+import {
+  formatMoney,
+  heatLabels,
+  nextStatus,
+  priorityTitles,
+  statusActions,
+  statusLabels,
+} from '../data/leadFormat'
 
-export default function LeadDetails({ lead, onClose }) {
+export default function LeadDetails({ lead, onClose, onChangeStatus }) {
   const [analysis, setAnalysis] = useState(null)
+  const [notice, setNotice] = useState('')
+
+  const upcomingStatus = nextStatus[lead.status]
 
   useEffect(() => {
     let active = true
@@ -25,6 +35,20 @@ export default function LeadDetails({ lead, onClose }) {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
+
+  useEffect(() => {
+    if (!notice) return undefined
+
+    const timer = setTimeout(() => setNotice(''), 2500)
+    return () => clearTimeout(timer)
+  }, [notice])
+
+  function handleStatusChange() {
+    if (!upcomingStatus) return
+
+    onChangeStatus(upcomingStatus)
+    setNotice(`Статус изменён: ${statusLabels[upcomingStatus]}`)
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -67,6 +91,23 @@ export default function LeadDetails({ lead, onClose }) {
             <span>Дата</span>
             <strong>{lead.createdAt}</strong>
           </div>
+        </div>
+
+        <div className="workflow">
+          <div className="workflow-head">
+            <span>Статус заявки</span>
+            <strong className={`badge status-${lead.status}`}>{statusLabels[lead.status]}</strong>
+          </div>
+
+          {upcomingStatus ? (
+            <button type="button" className="action-button" onClick={handleStatusChange}>
+              {statusActions[lead.status]}
+            </button>
+          ) : (
+            <p className="workflow-done">Заявка обработана — действия не требуются.</p>
+          )}
+
+          {notice ? <p className="workflow-notice">{notice}</p> : null}
         </div>
 
         <div className="ai-block">

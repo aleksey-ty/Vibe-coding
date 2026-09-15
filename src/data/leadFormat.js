@@ -1,7 +1,21 @@
+// Слой совместимости статусов заявки.
+// Значения поля status оставлены прежними (не переименовываем данные), но
+// менеджеру они показываются по понятной схеме: Новая → В работе → Обработана.
+
 export const statusLabels = {
   new: 'Новая',
-  hot: 'Горячая',
+  hot: 'В работе',
   processed: 'Обработана',
+}
+
+export const nextStatus = {
+  new: 'hot',
+  hot: 'processed',
+}
+
+export const statusActions = {
+  new: 'Взять в работу',
+  hot: 'Завершить',
 }
 
 export const heatLabels = {

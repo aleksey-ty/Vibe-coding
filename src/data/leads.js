@@ -94,7 +94,7 @@ export const weeklyLeadTrend = [
 export function getDashboardStats(items) {
   return {
     newCount: items.filter((lead) => lead.status === 'new').length,
-    hotCount: items.filter((lead) => lead.status === 'hot' || lead.heat === 'hot').length,
+    hotCount: items.filter((lead) => lead.heat === 'hot').length,
     processedCount: items.filter((lead) => lead.status === 'processed').length,
   }
 }

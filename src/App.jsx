@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import LeadsTrendChart from './components/LeadsTrendChart'
 import LeadDetails from './components/LeadDetails'
-import { getDashboardStats, leads, sortLeadsByPriority } from './data/leads'
+import { getDashboardStats, leads as initialLeads, sortLeadsByPriority } from './data/leads'
 import { formatMoney, heatLabels, statusLabels } from './data/leadFormat'
 import './App.css'
 
@@ -15,8 +15,20 @@ const navItems = [
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [selectedLead, setSelectedLead] = useState(null)
-  const stats = useMemo(() => getDashboardStats(leads), [])
+  const [leads, setLeads] = useState(initialLeads)
+  const [selectedLeadId, setSelectedLeadId] = useState(null)
+  const stats = useMemo(() => getDashboardStats(leads), [leads])
+  const selectedLead = leads.find((lead) => lead.id === selectedLeadId) ?? null
+
+  function selectLead(lead) {
+    setSelectedLeadId(lead.id)
+  }
+
+  function updateLeadStatus(leadId, nextStatus) {
+    setLeads((current) =>
+      current.map((lead) => (lead.id === leadId ? { ...lead, status: nextStatus } : lead)),
+    )
+  }
 
   return (
     <div className={`app ${menuOpen ? 'menu-open' : ''}`}>
@@ -73,22 +85,30 @@ export default function App() {
 
         {activePage === 'dashboard' ? (
           <Dashboard
+            leads={leads}
             stats={stats}
             onOpenLeads={() => setActivePage('leads')}
-            onSelectLead={setSelectedLead}
+            onSelectLead={selectLead}
           />
         ) : (
           <Placeholder page={navItems.find((item) => item.id === activePage)?.label} />
         )}
       </main>
 
-      {selectedLead ? <LeadDetails lead={selectedLead} onClose={() => setSelectedLead(null)} /> : null}
+      {selectedLead ? (
+        <LeadDetails
+          key={selectedLead.id}
+          lead={selectedLead}
+          onClose={() => setSelectedLeadId(null)}
+          onChangeStatus={(nextStatus) => updateLeadStatus(selectedLead.id, nextStatus)}
+        />
+      ) : null}
     </div>
   )
 }
 
-function Dashboard({ stats, onOpenLeads, onSelectLead }) {
-  const prioritizedLeads = useMemo(() => sortLeadsByPriority(leads), [])
+function Dashboard({ leads, stats, onOpenLeads, onSelectLead }) {
+  const prioritizedLeads = useMemo(() => sortLeadsByPriority(leads), [leads])
 
   return (
     <section className="content">
