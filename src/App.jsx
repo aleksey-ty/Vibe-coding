@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import LeadsTrendChart from './components/LeadsTrendChart'
 import LeadDetails from './components/LeadDetails'
 import LeadForm from './components/LeadForm'
@@ -14,17 +14,62 @@ const navItems = [
   { id: 'settings', label: 'Настройки', icon: SettingsIcon },
 ]
 
+// Заявки хранятся только в localStorage текущего браузера: это persistence-версия
+// для demo/pilot — без backend, авторизации и синхронизации между устройствами.
+const LEADS_STORAGE_KEY = 'ai-lead-manager-leads-v1'
+
+function isStoredLead(item) {
+  return Boolean(item) && typeof item === 'object' && typeof item.id === 'string'
+}
+
+// Чтение initial state. Повреждённые данные (не JSON, не массив, не заявки)
+// безопасно игнорируются — приложение поднимается на демо-данных.
+function readStoredLeads() {
+  try {
+    const raw = localStorage.getItem(LEADS_STORAGE_KEY)
+    if (!raw) return initialLeads
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) return initialLeads
+    if (!parsed.every(isStoredLead)) return initialLeads
+
+    return parsed
+  } catch {
+    // Нет доступа к localStorage или некорректный JSON — используем демо-данные.
+    return initialLeads
+  }
+}
+
+function writeStoredLeads(items) {
+  try {
+    localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(items))
+  } catch {
+    // Приватный режим или переполнение хранилища: продолжаем работать в памяти.
+  }
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [leads, setLeads] = useState(initialLeads)
+  const [leads, setLeads] = useState(readStoredLeads)
   const [selectedLeadId, setSelectedLeadId] = useState(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const stats = useMemo(() => getDashboardStats(leads), [leads])
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) ?? null
 
+  // Запись выполняется в эффекте, а не в рендере: эффект только сохраняет
+  // текущий leads и не меняет state, поэтому бесконечного цикла нет.
+  useEffect(() => {
+    writeStoredLeads(leads)
+  }, [leads])
+
   function selectLead(lead) {
     setSelectedLeadId(lead.id)
+  }
+
+  function resetDemoData() {
+    setSelectedLeadId(null)
+    setLeads(initialLeads)
   }
 
   function createLead(formValues) {
@@ -118,6 +163,7 @@ export default function App() {
             onOpenLeads={() => setActivePage('leads')}
             onSelectLead={selectLead}
             onCreateLead={() => setIsFormOpen(true)}
+            onResetData={resetDemoData}
           />
         ) : (
           <Placeholder page={navItems.find((item) => item.id === activePage)?.label} />
@@ -138,7 +184,7 @@ export default function App() {
   )
 }
 
-function Dashboard({ leads, stats, onOpenLeads, onSelectLead, onCreateLead }) {
+function Dashboard({ leads, stats, onOpenLeads, onSelectLead, onCreateLead, onResetData }) {
   const prioritizedLeads = useMemo(() => sortLeadsByPriority(leads), [leads])
 
   return (
@@ -180,6 +226,7 @@ function Dashboard({ leads, stats, onOpenLeads, onSelectLead, onCreateLead }) {
               + Новая заявка
             </button>
             <button className="ghost" onClick={onOpenLeads}>Все заявки</button>
+            <button className="ghost" onClick={onResetData}>Сбросить к демо-данным</button>
           </div>
         </div>
 
