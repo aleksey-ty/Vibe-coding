@@ -4,6 +4,7 @@ import LeadDetails from './components/LeadDetails'
 import LeadForm from './components/LeadForm'
 import { getDashboardStats, getHeatByValue, leads as initialLeads, sortLeadsByPriority } from './data/leads'
 import { formatLeadDate, formatMoney, heatLabels, statusLabels } from './data/leadFormat'
+import { getLeadAIAnalysis } from './data/aiAnalysis'
 import './App.css'
 
 const navItems = [
@@ -33,10 +34,22 @@ export default function App() {
       status: 'new',
       heat: getHeatByValue(formValues.value),
       createdAt: formatLeadDate(new Date()),
+      aiAnalysis: null,
     }
 
     setLeads((current) => [newLead, ...current])
     setIsFormOpen(false)
+
+    // AI-анализ запускается автоматически после создания заявки.
+    // Результат записываем обратно в конкретную заявку по id: без индекса
+    // массива и без старого значения leads из замыкания.
+    getLeadAIAnalysis(newLead).then((analysis) => {
+      setLeads((current) =>
+        current.map((lead) =>
+          lead.id === newLead.id ? { ...lead, aiAnalysis: analysis } : lead,
+        ),
+      )
+    })
   }
 
   function updateLeadStatus(leadId, nextStatus) {

@@ -10,16 +10,23 @@ import {
 } from '../data/leadFormat'
 
 export default function LeadDetails({ lead, onClose, onChangeStatus }) {
-  const [analysis, setAnalysis] = useState(null)
+  // Локальный стейт хранит только результат fallback-запроса: он нужен
+  // демо-заявкам, у которых aiAnalysis ещё не посчитан. Анализ, сохранённый
+  // в самой заявке (App.jsx), имеет приоритет — он вычисляется во время рендера.
+  const [fetchedAnalysis, setFetchedAnalysis] = useState(null)
   const [notice, setNotice] = useState('')
+  const analysis = lead.aiAnalysis ?? fetchedAnalysis
 
   const upcomingStatus = nextStatus[lead.status]
 
   useEffect(() => {
+    // Если анализ уже посчитан при создании заявки, повторный запрос не нужен.
+    if (lead.aiAnalysis) return undefined
+
     let active = true
 
     getLeadAIAnalysis(lead).then((result) => {
-      if (active) setAnalysis(result)
+      if (active) setFetchedAnalysis(result)
     })
 
     return () => {
