@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import LeadsTrendChart from './components/LeadsTrendChart'
 import LeadDetails from './components/LeadDetails'
 import LeadForm from './components/LeadForm'
+import LeadsPage from './components/LeadsPage'
+import PipelinePage from './components/PipelinePage'
+import SettingsPage from './components/SettingsPage'
 import { getDashboardStats, getHeatByValue, leads as initialLeads, sortLeadsByPriority } from './data/leads'
 import { formatLeadDate, formatMoney, heatLabels, statusLabels } from './data/leadFormat'
 import { getLeadAIAnalysis } from './data/aiAnalysis'
@@ -51,11 +54,25 @@ function writeStoredLeads(items) {
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [leads, setLeads] = useState(readStoredLeads)
   const [selectedLeadId, setSelectedLeadId] = useState(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const stats = useMemo(() => getDashboardStats(leads), [leads])
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) ?? null
+
+  // Поиск из шапки фильтрует списки заявок по клиенту, компании, источнику
+  // и описанию. Статистика считается по полному набору заявок.
+  const visibleLeads = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return leads
+
+    return leads.filter((lead) =>
+      [lead.id, lead.name, lead.company, lead.source, lead.description]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(query)),
+    )
+  }, [leads, searchQuery])
 
   // Запись выполняется в эффекте, а не в рендере: эффект только сохраняет
   // текущий leads и не меняет state, поэтому бесконечного цикла нет.
@@ -218,22 +235,39 @@ export default function App() {
           </div>
           <div className="search">
             <SearchIcon />
-            <input placeholder="Поиск заявок..." />
+            <input
+              placeholder="Поиск заявок..."
+              aria-label="Поиск заявок"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
           </div>
         </header>
 
         {activePage === 'dashboard' ? (
           <Dashboard
-            leads={leads}
+            leads={visibleLeads}
             stats={stats}
             onOpenLeads={() => setActivePage('leads')}
             onSelectLead={selectLead}
             onCreateLead={() => setIsFormOpen(true)}
             onResetData={resetDemoData}
           />
-        ) : (
-          <Placeholder page={navItems.find((item) => item.id === activePage)?.label} />
-        )}
+        ) : null}
+
+        {activePage === 'leads' ? (
+          <LeadsPage
+            leads={visibleLeads}
+            query={searchQuery.trim()}
+            onSelectLead={selectLead}
+            onCreateLead={() => setIsFormOpen(true)}
+            onResetData={resetDemoData}
+          />
+        ) : null}
+
+        {activePage === 'pipeline' ? <PipelinePage leads={visibleLeads} onSelectLead={selectLead} /> : null}
+
+        {activePage === 'settings' ? <SettingsPage leads={leads} onResetData={resetDemoData} /> : null}
       </main>
 
       {selectedLead ? (
@@ -346,17 +380,6 @@ function Dashboard({ leads, stats, onOpenLeads, onSelectLead, onCreateLead, onRe
             </tbody>
           </table>
         </div>
-      </div>
-    </section>
-  )
-}
-
-function Placeholder({ page }) {
-  return (
-    <section className="content">
-      <div className="placeholder">
-        <h2>{page}</h2>
-        <p>Раздел появится позже. Сейчас доступен только демонстрационный Dashboard.</p>
       </div>
     </section>
   )
