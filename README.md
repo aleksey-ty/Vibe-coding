@@ -1,16 +1,116 @@
-# React + Vite
+# Genesis AI / AI Lead Manager
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Демонстрационный AI-инструмент для первичной квалификации входящих заявок малого и
+среднего бизнеса. Система получает заявку, отправляет её в AI и показывает менеджеру
+приоритет, причину, недостающую информацию, вопросы клиенту, следующее действие и
+стратегию обработки лида.
 
-Currently, two official plugins are available:
+Ценность продукта: это не «чат-бот», а помощник отдела продаж — менеджер сразу видит,
+с какими заявками работать в первую очередь и что делать дальше.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Возможности
 
-## React Compiler
+- управление заявками: создание с валидацией формы, список, сортировка по приоритету;
+- AI-анализ заявки: приоритет, причина, недостающая информация, квалификационные вопросы,
+  следующее действие, стратегия обработки;
+- приоритизация hot / warm / cold по контексту заявки, а не только по сумме;
+- статусный workflow: Новая → В работе → Обработана;
+- сохранение данных: заявки и результаты AI-анализа хранятся в localStorage браузера;
+- защита от лишних AI-запросов: анализ выполняется один раз на заявку, повторный запуск —
+  только явной кнопкой «Повторить AI-анализ» после ошибки;
+- понятные состояния интерфейса: загрузка, ошибка, сохранённый результат анализа.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the Oxlint configuration
+- Frontend: React 19, Vite 8, CSS без UI-библиотек;
+- Backend: Node.js (встроенный `http`, без Express), `fetch` + `AbortSignal.timeout`;
+- AI: OpenRouter Chat Completions, модель `deepseek/deepseek-v4-flash-0731`,
+  structured output (JSON Schema) с однократным fallback без `response_format`;
+- Хранение: localStorage браузера (demo-режим, без БД и авторизации);
+- Линтер: oxlint.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Запуск
+
+1. Установить зависимости:
+
+```bash
+npm install
+```
+
+2. Создать в корне проекта файл `.env` (он в `.gitignore` и в Git не попадает):
+
+```env
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=deepseek/deepseek-v4-flash-0731
+```
+
+`OPENROUTER_API_KEY` — ключ OpenRouter. Он используется только backend и никогда не попадает
+во frontend, в localStorage и в ответы API.
+
+3. Запустить backend (по умолчанию порт 3001, можно изменить через `PORT`):
+
+```bash
+npm run server
+```
+
+4. Запустить frontend:
+
+```bash
+npm run dev
+```
+
+Vite dev-сервер проксирует `/api` на `http://localhost:3001`, поэтому frontend обращается
+к backend по относительному пути `/api/analyze-lead`.
+
+Проверка production-сборки:
+
+```bash
+npm run build
+npm run preview
+```
+
+## API
+
+`POST /api/analyze-lead` — единственный endpoint backend.
+
+Запрос (JSON): `{ name, company, source, contact, description, value, status, heat }`;
+обязательны `name` и `description`.
+
+Успешный ответ: `{ priority, reason, missingInformation, qualificationQuestions,
+recommendedAction, salesStrategy }`.
+
+Коды ответа: `200` — анализ готов; `400` — некорректный JSON или невалидные поля;
+`413` — тело запроса больше 32 КБ; `415` — неверный `Content-Type`; `429` — превышен лимит
+запросов; `502/504` — ошибка или таймаут AI; `405/404` — неверный метод или путь.
+
+## Безопасность
+
+- API-ключ OpenRouter хранится только в `.env` на сервере и не передаётся во frontend;
+- `.env` и `.env.*` в `.gitignore` (кроме `.env.example` — он без реальных значений);
+- тело запроса ограничено 32 КБ, текстовые поля обрезаются по длине, обязательные проверяются;
+- наружу уходят только короткие сообщения об ошибке: без stack trace, без сырого ответа
+  OpenRouter и без внутренних деталей;
+- логи backend не содержат API-ключ и полные ответы провайдера;
+- простой in-memory rate limit: не более 20 запросов с одного IP в минуту;
+- пользовательский текст выводится только через React (`dangerouslySetInnerHTML` не используется).
+
+## Демо-данные
+
+В `src/data/leads.js` собран демонстрационный набор заявок с разными сценариями
+квалификации: подтверждённый бюджет и срочность (hot), небольшая сумма при готовности
+начать (hot), неутверждённый бюджет и сравнение подрядчиков (warm), запрос «сколько стоит»
+(cold). У части заявок результат анализа уже сохранён — такие карточки открываются
+мгновенно и не тратят запросы к AI, а заявки без сохранённого анализа показывают живой
+AI-анализ с индикатором загрузки.
+
+## Структура проекта
+
+- `server/index.js` — backend: SYSTEM_PROMPT, JSON Schema, вызов OpenRouter, валидация и
+  нормализация ответа, коды ошибок, rate limit;
+- `src/data/aiAnalysis.js` — клиент `/api/analyze-lead` и проверка контракта анализа;
+- `src/data/leads.js` — demo-заявки и данные графика динамики;
+- `src/data/leadFormat.js` — подписи статусов и приоритетов, форматирование даты и суммы;
+- `src/data/leadValidation.js` — валидация формы создания заявки;
+- `src/App.jsx` — состояние заявок, localStorage, жизненный цикл AI-анализа;
+- `src/components/` — Dashboard, карточка заявки, форма создания, график динамики.
+

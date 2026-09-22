@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import LeadsTrendChart from './components/LeadsTrendChart'
 import LeadDetails from './components/LeadDetails'
 import LeadForm from './components/LeadForm'
@@ -63,6 +63,74 @@ export default function App() {
     writeStoredLeads(leads)
   }, [leads])
 
+  // AI-анализ выполняется один раз на заявку: результат хранится в самой заявке
+  // (lead.aiAnalysis) и попадает в localStorage через эффект записи leads выше.
+  // inFlightAnalysis — начатые промисы по id заявки: повторный вызов во время
+  // запроса переиспользует его, а не отправляет второй (защита от гонок и от
+  // двойного вызова эффектов в StrictMode).
+  // failedAnalysisIds — заявки, где AI ответил ошибкой: автоматического повтора
+  // нет, новый запрос возможен только по явной кнопке в карточке заявки.
+  const inFlightAnalysis = useRef(new Map())
+  const failedAnalysisIds = useRef(new Set())
+  const [analysisErrors, setAnalysisErrors] = useState({})
+
+  // Единственная точка запуска AI-анализа в приложении.
+  const runLeadAnalysis = useCallback((lead, options = {}) => {
+    const force = options.force === true
+    if (!lead?.id) return
+
+    // Запрос для этой заявки уже выполняется — второй не нужен.
+    if (inFlightAnalysis.current.has(lead.id)) return
+
+    if (!force) {
+      // Анализ уже сохранён в заявке — только показываем его, без запроса.
+      if (lead.aiAnalysis) return
+      // После ошибки автоповтора нет: только явное действие пользователя.
+      if (failedAnalysisIds.current.has(lead.id)) return
+    }
+
+    // Пока идёт запрос, показываем загрузку вместо прошлой ошибки.
+    setAnalysisErrors((current) => {
+      if (!current[lead.id]) return current
+
+      const next = { ...current }
+      delete next[lead.id]
+      return next
+    })
+
+    const request = getLeadAIAnalysis(lead)
+    inFlightAnalysis.current.set(lead.id, request)
+
+    request
+      .then((analysis) => {
+        // Промис выполняется только с валидным объектом: контракт (6 полей)
+        // проверяет normalizeAnalysis в src/data/aiAnalysis.js, а некорректный
+        // ответ отклоняет как ошибку. Сохраняем результат в заявку по id целиком.
+        failedAnalysisIds.current.delete(lead.id)
+        setLeads((current) =>
+          current.map((item) => (item.id === lead.id ? { ...item, aiAnalysis: analysis } : item)),
+        )
+      })
+      .catch((error) => {
+        // Технические детали — в консоль, менеджеру понятный текст из
+        // src/data/aiAnalysis.js. Автоматических повторов анализа здесь нет.
+        console.warn(`AI-анализ заявки ${lead.id} не выполнен:`, error?.details ?? error?.message ?? error)
+        failedAnalysisIds.current.add(lead.id)
+        setAnalysisErrors((current) => ({
+          ...current,
+          [lead.id]: error?.message || 'Не удалось выполнить AI-анализ. Попробуйте ещё раз.',
+        }))
+      })
+      .finally(() => {
+        inFlightAnalysis.current.delete(lead.id)
+      })
+  }, [])
+
+  // Заявка без готового анализа анализируется при открытии карточки: один запрос.
+  useEffect(() => {
+    if (selectedLead) runLeadAnalysis(selectedLead)
+  }, [selectedLead, runLeadAnalysis])
+
   function selectLead(lead) {
     setSelectedLeadId(lead.id)
   }
@@ -70,6 +138,11 @@ export default function App() {
   function resetDemoData() {
     setSelectedLeadId(null)
     setLeads(initialLeads)
+
+    // Демо-заявки приходят без AI-анализа: забываем ошибки прошлой сессии,
+    // чтобы анализ мог быть выполнен заново (без автоповторов).
+    failedAnalysisIds.current.clear()
+    setAnalysisErrors({})
   }
 
   function createLead(formValues) {
@@ -85,16 +158,9 @@ export default function App() {
     setLeads((current) => [newLead, ...current])
     setIsFormOpen(false)
 
-    // AI-анализ запускается автоматически после создания заявки.
-    // Результат записываем обратно в конкретную заявку по id: без индекса
-    // массива и без старого значения leads из замыкания.
-    getLeadAIAnalysis(newLead).then((analysis) => {
-      setLeads((current) =>
-        current.map((lead) =>
-          lead.id === newLead.id ? { ...lead, aiAnalysis: analysis } : lead,
-        ),
-      )
-    })
+    // AI-анализ новой заявки запускается через общую точку запуска: результат
+    // сохраняется в самой заявке (lead.aiAnalysis) и уходит в localStorage.
+    runLeadAnalysis(newLead)
   }
 
   function updateLeadStatus(leadId, nextStatus) {
@@ -174,6 +240,8 @@ export default function App() {
         <LeadDetails
           key={selectedLead.id}
           lead={selectedLead}
+          analysisError={analysisErrors[selectedLead.id] ?? ''}
+          onRetryAnalysis={() => runLeadAnalysis(selectedLead, { force: true })}
           onClose={() => setSelectedLeadId(null)}
           onChangeStatus={(nextStatus) => updateLeadStatus(selectedLead.id, nextStatus)}
         />
@@ -238,7 +306,7 @@ function Dashboard({ leads, stats, onOpenLeads, onSelectLead, onCreateLead, onRe
                 <th>Клиент</th>
                 <th>Источник</th>
                 <th>Статус</th>
-                <th>Приоритет</th>
+                <th>Приоритет по сумме</th>
                 <th>Сумма</th>
                 <th>Дата</th>
               </tr>

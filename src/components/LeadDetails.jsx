@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { getLeadAIAnalysis } from '../data/aiAnalysis'
 import {
   formatMoney,
   heatLabels,
@@ -7,32 +6,30 @@ import {
   priorityTitles,
   statusActions,
   statusLabels,
+  strategyLabels,
 } from '../data/leadFormat'
 
-export default function LeadDetails({ lead, onClose, onChangeStatus }) {
-  // Локальный стейт хранит только результат fallback-запроса: он нужен
-  // демо-заявкам, у которых aiAnalysis ещё не посчитан. Анализ, сохранённый
-  // в самой заявке (App.jsx), имеет приоритет — он вычисляется во время рендера.
-  const [fetchedAnalysis, setFetchedAnalysis] = useState(null)
+export default function LeadDetails({ lead, onClose, onChangeStatus, analysisError, onRetryAnalysis }) {
+  // Карточка не запрашивает AI-анализ сама. Единственный запрос делает App.jsx
+  // и сохраняет результат в lead.aiAnalysis (вместе с заявкой в localStorage),
+  // поэтому повторное открытие карточки и повторные рендеры новых запросов не
+  // создают. Здесь остаётся только отображение уже готового анализа.
   const [notice, setNotice] = useState('')
-  const analysis = lead.aiAnalysis ?? fetchedAnalysis
+  const analysis = lead.aiAnalysis ?? null
+
+  // Анализы, сохранённые до расширения контракта (старый localStorage), не
+  // содержат новых полей — приводим отсутствующие значения к безопасным,
+  // чтобы старые заявки продолжали открываться.
+  const missingInformation = Array.isArray(analysis?.missingInformation) ? analysis.missingInformation : []
+  const qualificationQuestions = Array.isArray(analysis?.qualificationQuestions)
+    ? analysis.qualificationQuestions
+    : []
+  const strategyTitle =
+    typeof analysis?.salesStrategy === 'string' && analysis.salesStrategy.trim()
+      ? strategyLabels[analysis.salesStrategy] ?? analysis.salesStrategy
+      : ''
 
   const upcomingStatus = nextStatus[lead.status]
-
-  useEffect(() => {
-    // Если анализ уже посчитан при создании заявки, повторный запрос не нужен.
-    if (lead.aiAnalysis) return undefined
-
-    let active = true
-
-    getLeadAIAnalysis(lead).then((result) => {
-      if (active) setFetchedAnalysis(result)
-    })
-
-    return () => {
-      active = false
-    }
-  }, [lead])
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -87,7 +84,7 @@ export default function LeadDetails({ lead, onClose, onChangeStatus }) {
             <strong>{statusLabels[lead.status]}</strong>
           </div>
           <div className="detail-item">
-            <span>Приоритет</span>
+            <span>Приоритет по сумме</span>
             <strong>{heatLabels[lead.heat]}</strong>
           </div>
           <div className="detail-item">
@@ -141,15 +138,53 @@ export default function LeadDetails({ lead, onClose, onChangeStatus }) {
                 <span>Приоритет</span>
                 <strong className={`badge heat-${analysis.priority}`}>{priorityTitles[analysis.priority]}</strong>
               </div>
+
               <div className="ai-section">
-                <span>Причина</span>
+                <span>Почему такой приоритет</span>
                 <p>{analysis.reason}</p>
               </div>
+
+              {missingInformation.length > 0 ? (
+                <div className="ai-section">
+                  <span>Не хватает информации</span>
+                  <ul>
+                    {missingInformation.map((item, index) => (
+                      <li key={`missing-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {qualificationQuestions.length > 0 ? (
+                <div className="ai-section">
+                  <span>Что спросить у клиента</span>
+                  <ul>
+                    {qualificationQuestions.map((item, index) => (
+                      <li key={`question-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               <div className="ai-section">
-                <span>Рекомендуемое действие</span>
+                <span>Следующее действие</span>
                 <p>{analysis.recommendedAction}</p>
               </div>
+
+              {strategyTitle ? (
+                <div className="ai-section">
+                  <span>Стратегия обработки</span>
+                  <p>{strategyTitle}</p>
+                </div>
+              ) : null}
             </div>
+          ) : analysisError ? (
+            <>
+              <p className="ai-error">{analysisError}</p>
+              <button type="button" className="action-button compact" onClick={onRetryAnalysis}>
+                Повторить AI-анализ
+              </button>
+            </>
           ) : (
             <p className="ai-loading">AI анализирует заявку…</p>
           )}

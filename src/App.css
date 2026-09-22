@@ -644,9 +644,22 @@ tbody tr.row-hot.row-clickable:hover {
   color: #111827;
 }
 
+.ai-section ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  color: #111827;
+}
+
 .ai-loading {
   margin: 16px 0 0;
   color: #4f46e5;
+}
+
+.ai-error {
+  margin: 16px 0 0;
+  color: #b91c1c;
 }
 
 .workflow {

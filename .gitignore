@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Локальные переменные окружения (API-ключи) — не коммитим
+.env
+.env.*
+!.env.example
+
+# Служебный файл Windows
+desktop.ini
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

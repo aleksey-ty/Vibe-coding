@@ -30,6 +30,17 @@ export const priorityTitles = {
   cold: 'Холодная',
 }
 
+// Стратегия обработки лида из AI-анализа: стабильные токены контракта
+// превращаем в понятные менеджеру формулировки. Неизвестное значение
+// LeadDetails покажет как есть.
+export const strategyLabels = {
+  qualification: 'Квалификация — сначала уточнить детали заявки',
+  direct_contact: 'Предметный контакт — можно обсуждать условия',
+  urgent_contact: 'Срочный контакт — связаться как можно быстрее',
+  follow_up: 'Повторный контакт — вернуться к заявке позже',
+  low_priority: 'Низкий приоритет — обработать после перспективных заявок',
+}
+
 export function formatMoney(value) {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
